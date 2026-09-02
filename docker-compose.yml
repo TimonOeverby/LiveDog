@@ -1,0 +1,66 @@
+services:
+  # PostgreSQL Database (always runs)
+  db:
+    image: postgres:16-alpine
+    container_name: livedog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: livedog
+      POSTGRES_PASSWORD: livedog_dev_password
+      POSTGRES_DB: livedog
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U livedog"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (always runs)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      cache_from:
+        - livedog-backend:latest
+    container_name: livedog-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://livedog:livedog_dev_password@db:5432/livedog?schema=public
+      JWT_SECRET: dev-secret-key-change-in-production
+      PORT: 3000
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    command: /bin/bash /app/scripts/start-dev.sh
+
+  # Frontend (only runs with 'full' profile)
+  frontend:
+    profiles: ["full"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      cache_from:
+        - livedog-frontend:latest
+    container_name: livedog-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    environment:
+      VITE_PROXY_TARGET: http://backend:3000
+    command: bun run dev --host
+
+volumes:
+  postgres_data:

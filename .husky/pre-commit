@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+if ! command -v git >/dev/null 2>&1; then
+	echo "husky - git is not available in PATH=$PATH"
+	exit 1
+fi
+
+bunx lint-staged

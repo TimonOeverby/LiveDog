@@ -1,0 +1,146 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  // Aktiver Prisma views for lesbare visninger i Prisma Studio
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String?  @unique
+  email     String   @unique
+  password  String
+  imageUrl  String?
+  phoneNumber String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dogs      Dog[]
+  comments  Comment[]
+  likes     Like[]
+  competitionRatings CompetitionRating[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Dog {
+  id          String   @id @default(cuid())
+  name        String
+  breed       String
+  description String
+  imageUrl    String?
+  ownerId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  competitionEntries CompetitionEntry[]
+  comments           Comment[]
+  likes              Like[]
+}
+
+model Competition {
+  id          String            @id @default(cuid())
+  name        String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  status      CompetitionStatus @default(UPCOMING)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  entries     CompetitionEntry[]
+}
+
+enum CompetitionStatus {
+  UPCOMING
+  ACTIVE
+  COMPLETED
+}
+
+model CompetitionEntry {
+  id            String   @id @default(cuid())
+  dogId         String
+  competitionId String
+  createdAt     DateTime @default(now())
+
+  dog         Dog         @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  ratings     CompetitionRating[]
+
+  @@unique([dogId, competitionId])
+}
+
+model CompetitionRating {
+  id                 String   @id @default(cuid())
+  userId             String
+  competitionEntryId String
+  score              Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  competitionEntry CompetitionEntry @relation(fields: [competitionEntryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, competitionEntryId])
+  @@index([competitionEntryId])
+  @@index([userId])
+}
+
+// Leserbar visning av konkurransedeltakere med navn og eier
+view CompetitionParticipant {
+  id              String
+  competitionId   String
+  competitionName String
+  dogId           String
+  dogName         String
+  dogBreed        String
+  ownerId         String
+  ownerEmail      String
+  createdAt       DateTime
+
+  @@map("competition_participants")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  dogId     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dog  Dog  @relation(fields: [dogId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  dogId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dog  Dog  @relation(fields: [dogId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dogId])
+}
+
+model Advertisement {
+  id            String   @id @default(cuid())
+  imageData     String   @db.Text // Base64 encoded image
+  isActive      Boolean  @default(true)
+  followsCursor Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
